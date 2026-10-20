@@ -1,0 +1,29 @@
+package:
+  name: node-child-process
+  dependencies:
+    - aff
+    - datetime
+    - effect
+    - either
+    - exceptions
+    - foreign
+    - foreign-object
+    - functions
+    - maybe
+    - node-buffer
+    - node-event-emitter
+    - node-fs
+    - node-os
+    - node-streams
+    - nullable
+    - parallel
+    - partial
+    - posix-types
+    - prelude
+    - refs
+    - safe-coerce
+    - unsafe-coerce
+
+workspace:
+  packageSet:
+    registry: 77.7.0

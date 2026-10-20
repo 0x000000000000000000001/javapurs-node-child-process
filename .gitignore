@@ -1,0 +1,14 @@
+/.*
+!/.gitignore
+/.github/
+/bower_components/
+/node_modules/
+output/
+output.bak/
+package-lock.json
+java_output/
+classes/
+.spago/
+*.class
+*.java.bak
+.DS_Store
