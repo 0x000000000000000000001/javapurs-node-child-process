@@ -44,8 +44,13 @@
     public static Object signalCodeImpl = (java.util.function.Function<Object, Object>) (child) ->
         (java.util.function.Supplier<Object>) () -> __child(child).signalCode;
 
-    public static Object spawnArgs = (java.util.function.Function<Object, Object>) (child) -> new Object[0];
+    public static Object spawnArgs = (java.util.function.Function<Object, Object>) (child) ->
+        __child(child).spawnArgs;
 
-    public static Object spawnFile = (java.util.function.Function<Object, Object>) (child) -> "";
+    public static Object spawnFile = (java.util.function.Function<Object, Object>) (child) ->
+        __child(child).spawnFile;
 
-    public static Object stdio = (java.util.function.Function<Object, Object>) (child) -> new Object[0];
+    public static Object stdio = (java.util.function.Function<Object, Object>) (child) -> {
+        __M$Node_UnsafeChildProcess_Unsafe.ChildProcessValue value = __child(child);
+        return new Object[] { value.stdin, value.stdout, value.stderr };
+    };

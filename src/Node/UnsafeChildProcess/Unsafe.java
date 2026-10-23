@@ -7,6 +7,25 @@
         public String signalCode = null;
         public boolean connected = true;
         public boolean killed = false;
+        public String spawnFile = "";
+        public Object[] spawnArgs = new Object[0];
+        private final java.util.List<Object[]> history = new java.util.ArrayList<>();
+
+        @Override
+        public boolean fire(String name, Object... args) {
+            boolean delivered = super.fire(name, args);
+            history.add(new Object[] { name, args });
+            if (history.size() > 64) history.remove(0);
+            return delivered;
+        }
+
+        @Override
+        public void addListener(String name, Object listener, boolean prepend) {
+            super.addListener(name, listener, prepend);
+            for (Object[] event : new java.util.ArrayList<>(history)) {
+                if (name.equals(event[0])) invoke(listener, (Object[]) event[1]);
+            }
+        }
     }
 
     private static void __append(__M$Node_Stream.ReadableStream stream, byte[] chunk) {
@@ -36,6 +55,8 @@
         ChildProcessValue child = new ChildProcessValue();
         java.util.List<String> commandLine = new java.util.ArrayList<>();
         commandLine.add(command);
+        child.spawnFile = command;
+        child.spawnArgs = argsObj instanceof Object[] ? ((Object[]) argsObj).clone() : new Object[0];
         if (argsObj instanceof Object[]) for (Object arg : (Object[]) argsObj) commandLine.add(String.valueOf(arg));
         try {
             java.lang.ProcessBuilder builder = new java.lang.ProcessBuilder(commandLine);
@@ -59,20 +80,29 @@
                     builder.command(shellLine);
                 }
             }
+            builder.redirectInput(java.lang.ProcessBuilder.Redirect.from(new java.io.File("/dev/null")));
             child.process = builder.start();
             Thread out = new Thread(() -> __pump(child.process.getInputStream(), child.stdout));
             Thread err = new Thread(() -> __pump(child.process.getErrorStream(), child.stderr));
             out.setDaemon(true); err.setDaemon(true); out.start(); err.start();
             Thread waiter = new Thread(() -> {
                 try {
-                    int code = child.process.waitFor();
+                    boolean finished = child.process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
+                    int code;
+                    if (!finished) {
+                        child.process.descendants().forEach(ProcessHandle::destroyForcibly);
+                        child.process.destroyForcibly();
+                        code = 124;
+                    } else {
+                        code = child.process.exitValue();
+                    }
                     child.exitCode = code;
                     child.connected = false;
                     child.fire("exit", code, null);
                     child.fire("close", code, null);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    child.fire("error", interrupted);
+                } catch (Throwable failed) {
+                    failed.printStackTrace();
+                    child.fire("error", failed);
                 }
             });
             waiter.setDaemon(true); waiter.start();
@@ -101,64 +131,65 @@
     public static Object unsafeStderr = (java.util.function.Function<Object, Object>) (child) ->
         ((ChildProcessValue) child).stderr;
 
-    private static java.util.function.Supplier<Object> __unsupported() {
+    private static java.util.function.Supplier<Object> __unsupported(String api) {
         return (java.util.function.Supplier<Object>) () -> {
-            throw new UnsupportedOperationException("child_process API is not implemented on JVM");
+            throw new UnsupportedOperationException(
+                "node-child-process: " + api + " is not implemented on JVM");
         };
     }
 
-    public static Object execSyncImpl = (java.util.function.Function<Object, Object>) (command) -> __unsupported();
+    public static Object execSyncImpl = (java.util.function.Function<Object, Object>) (command) -> __unsupported("execSync");
     public static Object execSyncOptsImpl = (java.util.function.Function<Object, Object>) (command) ->
-        (java.util.function.Function<Object, Object>) (opts) -> __unsupported();
-    public static Object execImpl = (java.util.function.Function<Object, Object>) (command) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (opts) -> __unsupported("execSync(options)");
+    public static Object execImpl = (java.util.function.Function<Object, Object>) (command) -> __unsupported("exec");
     public static Object execOptsImpl = (java.util.function.Function<Object, Object>) (command) ->
-        (java.util.function.Function<Object, Object>) (opts) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (opts) -> __unsupported("exec(options)");
     public static Object execCbImpl = (java.util.function.Function<Object, Object>) (command) ->
-        (java.util.function.Function<Object, Object>) (callback) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (callback) -> __unsupported("exec(callback)");
     public static Object execOptsCbImpl = (java.util.function.Function<Object, Object>) (command) ->
         (java.util.function.Function<Object, Object>) (opts) ->
-        (java.util.function.Function<Object, Object>) (callback) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (callback) -> __unsupported("exec(options, callback)");
     public static Object execFileSyncImpl = (java.util.function.Function<Object, Object>) (file) ->
-        (java.util.function.Function<Object, Object>) (args) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (args) -> __unsupported("execFileSync");
     public static Object execFileSyncOptsImpl = (java.util.function.Function<Object, Object>) (file) ->
         (java.util.function.Function<Object, Object>) (args) ->
-        (java.util.function.Function<Object, Object>) (opts) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (opts) -> __unsupported("execFileSync(options)");
     public static Object execFileImpl = (java.util.function.Function<Object, Object>) (file) ->
-        (java.util.function.Function<Object, Object>) (args) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (args) -> __unsupported("execFile");
     public static Object execFileOptsImpl = (java.util.function.Function<Object, Object>) (file) ->
         (java.util.function.Function<Object, Object>) (args) ->
-        (java.util.function.Function<Object, Object>) (opts) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (opts) -> __unsupported("execFile(options)");
     public static Object execFileCbImpl = (java.util.function.Function<Object, Object>) (file) ->
         (java.util.function.Function<Object, Object>) (args) ->
-        (java.util.function.Function<Object, Object>) (callback) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (callback) -> __unsupported("execFile(callback)");
     public static Object execFileOptsCbImpl = (java.util.function.Function<Object, Object>) (file) ->
         (java.util.function.Function<Object, Object>) (args) ->
         (java.util.function.Function<Object, Object>) (opts) ->
-        (java.util.function.Function<Object, Object>) (callback) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (callback) -> __unsupported("execFile(options, callback)");
     public static Object spawnSyncImpl = (java.util.function.Function<Object, Object>) (command) ->
-        (java.util.function.Function<Object, Object>) (args) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (args) -> __unsupported("spawnSync");
     public static Object spawnSyncOptsImpl = (java.util.function.Function<Object, Object>) (command) ->
         (java.util.function.Function<Object, Object>) (args) ->
-        (java.util.function.Function<Object, Object>) (opts) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (opts) -> __unsupported("spawnSync(options)");
     public static Object forkImpl = spawnImpl;
     public static Object forkOptsImpl = spawnOptsImpl;
     public static Object sendImpl = (java.util.function.Function<Object, Object>) (child) ->
         (java.util.function.Function<Object, Object>) (message) ->
-        (java.util.function.Function<Object, Object>) (handle) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (handle) -> __unsupported("send");
     public static Object sendOptsImpl = (java.util.function.Function<Object, Object>) (child) ->
         (java.util.function.Function<Object, Object>) (message) ->
         (java.util.function.Function<Object, Object>) (handle) ->
-        (java.util.function.Function<Object, Object>) (opts) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (opts) -> __unsupported("send(options)");
     public static Object sendCbImpl = (java.util.function.Function<Object, Object>) (child) ->
         (java.util.function.Function<Object, Object>) (message) ->
         (java.util.function.Function<Object, Object>) (handle) ->
-        (java.util.function.Function<Object, Object>) (callback) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (callback) -> __unsupported("send(callback)");
     public static Object sendOptsCbImpl = (java.util.function.Function<Object, Object>) (child) ->
         (java.util.function.Function<Object, Object>) (message) ->
         (java.util.function.Function<Object, Object>) (handle) ->
         (java.util.function.Function<Object, Object>) (opts) ->
-        (java.util.function.Function<Object, Object>) (callback) -> __unsupported();
+        (java.util.function.Function<Object, Object>) (callback) -> __unsupported("send(options, callback)");
     public static Object unsafeChannelRefImpl = (java.util.function.Function<Object, Object>) (child) ->
-        (java.util.function.Supplier<Object>) () -> null;
+        __unsupported("channel.ref");
     public static Object unsafeChannelUnrefImpl = (java.util.function.Function<Object, Object>) (child) ->
-        (java.util.function.Supplier<Object>) () -> null;
+        __unsupported("channel.unref");
